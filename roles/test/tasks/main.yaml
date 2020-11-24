@@ -1,0 +1,74 @@
+---
+- name: Test Playbooks.
+  hosts: all
+  become: yes
+
+  tasks:
+
+  - name: Create files fizz
+    hosts: linuxX1
+  copy:
+    dest: "{{destin_folder}}/fizz.json"
+    state: touch
+    mode: 0777
+    content: |
+      fizz
+
+- name: Create files buzz
+  hosts: linuxX2
+  copy:
+    dest: "{{destin_folder}}/buzz.yaml"
+    state: touch
+    mode: 0777
+    content: |
+      buzz
+
+###
+- name: Change fizz --> buzz
+  hosts: linuxX1
+  ignore_errors: yes
+  replace:
+    path: "{{destin_folder}}/fizz.json"
+    regexp: 'fizz'
+    replace: "buzz"
+
+- name: Change buzz --> fizz
+  hosts: linuxX2
+  ignore_errors: yes
+  replace:
+    path: "{{destin_folder}}/buzz.yaml"
+    regexp: 'buzz'
+    replace: "fizz"
+
+###
+- name: Check file
+  replace:
+    dest    : "{{destin_folder}}"
+    replace : "buzz"
+    regexp  : "fizz"
+    backup  : yes
+  register  : checkedTrue
+
+- name: Insert line to EOF
+  lineinfile:
+    state   : present
+    dest    : "{{destin_folder}}"
+    line    : "buzz"
+    regexp  : ''
+    insertafter: EOF
+  when: checkedTrue.changed
+
+###
+- name: Move file from linux2 to linux1
+  hosts: linuxX2
+  synchronize: 
+    src: "{{destin_folder}}/fizz.json" 
+    dest: "{{destin_folder}}/fizz.json"
+  delegate_to: linuxX1
+
+- name: Move file from linux1 to linux2
+  hosts: linuxX1
+  synchronize: 
+    src: "{{destin_folder}}/buzz.yaml" 
+    dest: "{{destin_folder}}/buzz.yaml"
+  delegate_to: linuxX2
